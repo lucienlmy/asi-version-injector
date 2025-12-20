@@ -18,5 +18,5 @@
 4. Click the "Inject Build Config" button to inject the ASI plugin into the selected game build number.
 5. Start the game and check if the ASI plugin is loaded.
 
-# License
+## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
