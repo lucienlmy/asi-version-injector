@@ -1,0 +1,62 @@
+name: Build ResourceInjector  
+  
+on:  
+  push:  
+    branches: [ main, master, Joy ]  
+    tags: [ 'v*' ]  
+  pull_request:  
+    branches: [ main, master ]  
+  workflow_dispatch:  # 添加手动触发  
+    inputs:  
+      create_release:  
+        description: 'Create GitHub Release'  
+        required: false  
+        default: false  
+        type: boolean  
+      release_tag:  
+        description: 'Release tag (e.g., v1.0.0)'  
+        required: false  
+        default: ''  
+        type: string  
+  
+jobs:  
+  build:  
+    runs-on: windows-latest  
+      
+    steps:  
+    - name: Checkout code  
+      uses: actions/checkout@v4  
+        
+    - name: Set up Go  
+      uses: actions/setup-go@v4  
+      with:  
+        go-version: '1.21'  
+          
+    - name: Cache Go modules  
+      uses: actions/cache@v4  # 更新到 v4  
+      with:  
+        path: ~/go/pkg/mod  
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}  
+        restore-keys: |  
+          ${{ runner.os }}-go-  
+            
+    - name: Download dependencies  
+      run: go mod tidy  
+        
+    - name: Build application  
+      run: go build -ldflags "-s -w" -o ResourceInjector.exe  
+        
+    - name: Upload artifact  
+      uses: actions/upload-artifact@v4  # 更新到 v4  
+      with:  
+        name: ResourceInjector  
+        path: ResourceInjector.exe  
+          
+    - name: Create Release  
+      if: (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true') && (github.event.inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/v'))  
+      uses: softprops/action-gh-release@v1  
+      with:  
+        files: ResourceInjector.exe  
+        tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}  
+      env:  
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
