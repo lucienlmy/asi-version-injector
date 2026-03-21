@@ -19,6 +19,9 @@ on:
         default: ''  
         type: string  
   
+env:  
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # 添加这行  
+  
 jobs:  
   build:  
     runs-on: windows-latest  
@@ -33,7 +36,7 @@ jobs:
         go-version: '1.21'  
           
     - name: Cache Go modules  
-      uses: actions/cache@v4  # 更新到 v4  
+      uses: actions/cache@v4  
       with:  
         path: ~/go/pkg/mod  
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}  
@@ -47,7 +50,7 @@ jobs:
       run: go build -ldflags "-s -w" -o ResourceInjector.exe  
         
     - name: Upload artifact  
-      uses: actions/upload-artifact@v4  # 更新到 v4  
+      uses: actions/upload-artifact@v4  
       with:  
         name: ResourceInjector  
         path: ResourceInjector.exe  
