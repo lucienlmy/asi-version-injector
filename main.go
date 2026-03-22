@@ -48,11 +48,16 @@ func main() {
 		if _, exists := checkboxes[ver]; exists {
 			return
 		}
-		cb, _ := walk.NewCheckBox(versionParent)
+		cb, err := walk.NewCheckBox(versionParent)
+		if err != nil || cb == nil {
+			return
+		}
 		cb.SetText(fmt.Sprintf("Version: %d", ver))
 		cb.SetChecked(checked)
 		checkboxes[ver] = cb
-		versionParent.RequestLayout()
+		if versionParent != nil {
+			versionParent.RequestLayout()
+		}
 	}
 
 	MainWindow{
@@ -181,7 +186,136 @@ func main() {
 				},
 			},
 		},
-	}.Create()
+	if err := MainWindow{
+		AssignTo: &mw,
+		Title:    "FiveM ASI Build Injector",
+		Size:     Size{Width: 800, Height: 500},
+		Layout:   HBox{MarginsZero: true},
+		OnDropFiles: func(files []string) {
+			if len(files) > 0 {
+				path := files[0]
+				currentFilePath = path
+				lblPath.SetText(fmt.Sprintf("File: %s", filepath.Base(path)))
+				logTE.AppendText(fmt.Sprintf("Processing: %s", path) + "\r\n")
+			}
+		},
+		Children: []Widget{
+			HSplitter{
+				Children: []Widget{
+					Composite{
+						MinSize: Size{Width: 300},
+						Layout:  VBox{},
+						Children: []Widget{
+							Label{
+								AssignTo: &lblPath,
+								Text:     "Drag your .asi file here...",
+							},
+							Composite{
+								Layout: Grid{Columns: 2},
+								Children: []Widget{
+									PushButton{
+										Text: "All",
+										OnClicked: func() {
+											for _, cb := range checkboxes {
+												cb.SetChecked(true)
+											}
+										},
+									},
+									PushButton{
+										Text: "None",
+										OnClicked: func() {
+											for _, cb := range checkboxes {
+												cb.SetChecked(false)
+											}
+										},
+									},
+								},
+							},
+							ScrollView{
+								Layout: VBox{},
+								Children: []Widget{
+									Composite{
+										AssignTo: &versionParent,
+										Layout:   VBox{MarginsZero: true},
+									},
+								},
+							},
+							Composite{
+								Layout: Grid{Columns: 2},
+								Children: []Widget{
+									LineEdit{
+										AssignTo:   &entryCustom,
+										CueBanner:  "Custom Version (e.g. 4000)",
+										ColumnSpan: 1,
+									},
+									PushButton{
+										Text: "Add",
+										OnClicked: func() {
+											val, err := strconv.Atoi(entryCustom.Text())
+											if err == nil && val > 0 {
+												addCheckbox(val, true)
+												entryCustom.SetText("")
+											} else {
+												walk.MsgBox(mw, "Error", "Invalid version number.", walk.MsgBoxIconError)
+											}
+										},
+									},
+								},
+							},
+							PushButton{
+								Text:    "Inject Build Config",
+								MinSize: Size{Height: 40},
+								OnClicked: func() {
+									if currentFilePath == "" {
+										walk.MsgBox(mw, "Info", "Please drag an .asi file first!", walk.MsgBoxIconInformation)
+										return
+									}
+									var targetVersions []int
+									for ver, cb := range checkboxes {
+										if cb.Checked() {
+											targetVersions = append(targetVersions, ver)
+										}
+									}
+									if len(targetVersions) == 0 {
+										walk.MsgBox(mw, "Info", "No versions selected.", walk.MsgBoxIconInformation)
+										return
+									}
+									logTE.SetText("")
+									logTE.AppendText(fmt.Sprintf("Processing: %s", filepath.Base(currentFilePath)) + "\r\n")
+									count, err := injectResources(currentFilePath, targetVersions, func(msg string) {
+										logTE.AppendText(msg + "\r\n")
+									})
+									if err != nil {
+										walk.MsgBox(mw, "Error", err.Error(), walk.MsgBoxIconError)
+										logTE.AppendText("Error: " + err.Error() + "\r\n")
+									} else {
+										walk.MsgBox(mw, "Success", fmt.Sprintf("Injected %d versions successfully!", count), walk.MsgBoxIconInformation)
+										logTE.AppendText("----------------------\r\n")
+										logTE.AppendText("--- Completed ---" + "\r\n")
+									}
+								},
+							},
+							VSpacer{},
+						},
+					},
+					Composite{
+						Layout: VBox{},
+						Children: []Widget{
+							Label{Text: "Injection Log"},
+							TextEdit{
+								AssignTo: &logTE,
+								ReadOnly: true,
+								VScroll:  true,
+							},
+						},
+					},
+				},
+			},
+		},
+	}.Create(); err != nil {
+		walk.MsgBox(nil, "Error", fmt.Sprintf("Failed to create UI: %v", err), walk.MsgBoxIconError)
+		return
+	}
 	for _, v := range defaultVersions {
 		addCheckbox(v, true)
 	}

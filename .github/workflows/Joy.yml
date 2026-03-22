@@ -20,7 +20,7 @@ on:
         type: string  
   
 env:  
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # 添加这行  
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"  # 强制 actions 使用 Node.js 24
   
 jobs:  
   build:  
@@ -46,20 +46,31 @@ jobs:
     - name: Download dependencies  
       run: go mod tidy  
         
-    - name: Build application  
-      run: go build -ldflags "-s -w" -o ResourceInjector.exe  
+    - name: Build application
+      shell: bash
+      env:
+        GOOS: windows
+        GOARCH: amd64
+      run: |
+        go build -ldflags "-s -w" -o ResourceInjector.exe
+
+    - name: Zip artifact
+      run: |
+        powershell -Command "Compress-Archive -Path ResourceInjector.exe -DestinationPath ResourceInjector.zip -Force"
         
-    - name: Upload artifact  
-      uses: actions/upload-artifact@v4  
-      with:  
-        name: ResourceInjector  
-        path: ResourceInjector.exe  
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ResourceInjector
+        path: |
+          ResourceInjector.zip
+          ResourceInjector.exe
           
     - name: Create Release  
       if: (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true') && (github.event.inputs.release_tag != '' || startsWith(github.ref, 'refs/tags/v'))  
       uses: softprops/action-gh-release@v1  
       with:  
-        files: ResourceInjector.exe  
+        files: ResourceInjector.zip
         tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}  
       env:  
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
